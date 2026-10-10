@@ -214,17 +214,37 @@ function relevance(page,query){
   const exact=norm(page.title||'').join(' ')===norm(query).join(' ')?1:0;
   return hit/qw.length+exact;
 }
+// Убираем служебные разделы, сноски и библиографию, оставляем только текст статьи
+function stripArticle(t){
+  if(!t)return '';
+  let x=t.replace(/\r/g,'');
+  const cut=x.search(/==+\s*(Примечания|Ссылки|См\.? также|Литература|Источники|Комментарии|Notes|References|See also|External links|Further reading|Bibliography)\s*==+/i);
+  if(cut>0)x=x.slice(0,cut);
+  x=x.replace(/==+[^=\n]+==+/g,' ')
+     .replace(/\[\d+\]/g,'')
+     .replace(/\[(источник|править|править код)[^\]]*\]/gi,'')
+     .replace(/\s+/g,' ').trim();
+  return x;
+}
+// Страница-список значений («X может обозначать…») не годится как ответ
+function isDisambig(extract){
+  return /(может обозначать|может означать|may refer to|may also refer to|is a disambiguation|возможные значения)/i.test((extract||'').slice(0,300));
+}
+// Сноска или библиографическая строка, не содержательный текст
+function isNoise(x){
+  return /(https?:\/\/|\bISBN\b|\bdoi\b|\/\/ |Архивировано|Дата обращения|Retrieved|Archived from)/i.test(x)||x.length<40;
+}
 async function fullText(pageid,host){
   const url='https://'+(host||'ru.wikipedia.org')+'/w/api.php?action=query&format=json&origin=*&prop=extracts&explaintext=1&pageids='+pageid;
   const j=await (await fetch(url)).json();
   const p=j.query&&j.query.pages&&j.query.pages[pageid];
-  return p&&p.extract?p.extract.slice(0,30000):'';
+  return p&&p.extract?stripArticle(p.extract).slice(0,30000):'';
 }
 // Выбирает предложения из статьи, которые ближе всего к смыслу вопроса
 function bestSentences(text,query,n){
   const qw=[...new Set(norm(query).filter(w=>!STOP.has(w)).map(w=>w.slice(0,5)))];
   if(!qw.length)return [];
-  const sents=text.replace(/\s+/g,' ').split(/(?<=[.!?])\s+/).filter(x=>x.length>30);
+  const sents=text.replace(/\s+/g,' ').split(/(?<=[.!?])\s+/).filter(x=>!isNoise(x));
   const scored=sents.map((x,i)=>{
     const tw=new Set(norm(x).map(w=>w.slice(0,5)));
     const hit=qw.filter(w=>tw.has(w)).length;
@@ -248,13 +268,33 @@ function ddg(q){
 }
 // Энциклопедии, которые бот открывает (бесплатно, без ключей)
 const HOSTS=['ru.wikipedia.org','en.wikipedia.org','uk.wikipedia.org','de.wikipedia.org','fr.wikipedia.org','es.wikipedia.org','simple.wikipedia.org'];
-async function searchHost(vs,host){
+// Частые слова, которые переводим для английских энциклопедий
+const EN={'айфон':'iphone','айфона':'iphone','айфоны':'iphone','айпад':'ipad','мак':'mac','самсунг':'samsung','гугл':'google','ютуб':'youtube','телеграм':'telegram','андроид':'android','виндовс':'windows','тесла':'tesla','нейросеть':'neural network'};
+function toEn(t){return t.toLowerCase().split(/\s+/).map(w=>EN[w]||w).join(' ')}
+// Какая доля главных слов вопроса есть в тексте статьи
+function coverage(extract,text){
+  const terms=[...new Set(norm(text).filter(w=>!STOP.has(w)&&w.length>2).map(w=>w.slice(0,5)))];
+  if(!terms.length)return 0;
+  const body=new Set(norm(extract||'').map(w=>w.slice(0,5)));
+  return terms.filter(t=>body.has(t)).length/terms.length;
+}
+function termCount(text){return new Set(norm(text).filter(w=>!STOP.has(w)&&w.length>2)).size}
+async function searchHost(vs,host,text){
+  const isEn=/^(en|simple)\./.test(host);
+  const qText=isEn?toEn(text):text;
   const seen=new Map();
   for(const v of vs){
-    const pages=await wikiSearch(v,deep?6:3,deep?3:3,host).catch(()=>[]);
-    for(const p of pages)if(p.extract&&!seen.has(p.pageid))seen.set(p.pageid,{...p,host,score:relevance(p,v)});
-    const best=[...seen.values()].sort((a,b)=>b.score-a.score)[0];
-    if(best&&best.score>=1&&!deep)break;
+    const qv=isEn?toEn(v):v;
+    const pages=await wikiSearch(qv,deep?6:3,deep?3:3,host).catch(()=>[]);
+    for(const p of pages)if(p.extract&&!seen.has(p.pageid)&&!isDisambig(p.extract)){
+      const cov=coverage((p.title||'')+' '+p.extract,qText);
+      // хорошая статья: содержит все главные слова вопроса (или большую их часть, если слов много)
+      const n=termCount(qText);
+      const good=cov>=0.99||(n>=3&&cov>=0.66);
+      seen.set(p.pageid,{...p,host,cov,good,score:cov*0.7+relevance(p,qv)*0.3});
+    }
+    const best=[...seen.values()].filter(x=>x.good).sort((a,b)=>b.score-a.score)[0];
+    if(best&&!deep)break;
   }
   return [...seen.values()].sort((a,b)=>b.score-a.score);
 }
@@ -262,33 +302,25 @@ async function wiki(text){
   const vs=variants(text);
   const fix=await suggest(vs[0]);
   if(fix&&fix.toLowerCase()!==vs[0].toLowerCase())vs.unshift(fix);
-  // Ищем сразу во всех энциклопедиях параллельно
-  const results=await Promise.all(HOSTS.map(h=>searchHost(vs,h)));
-  let list=results.flat().sort((a,b)=>b.score-a.score);
-  const good=list.filter(p=>p.score>=0.5);
+  const results=await Promise.all(HOSTS.map(h=>searchHost(vs,h,text)));
+  const list=results.flat().sort((a,b)=>b.score-a.score);
+  const good=list.filter(p=>p.good);
   if(!good.length){
-    // Ничего хорошего: быстрые справки DuckDuckGo
-    const d=await ddg(text);
-    if(d)return d;
-    if(!list.length)return null;
+    // Подходящих статей нет: пробуем быстрые справки DuckDuckGo, иначе честно сообщаем
+    return await ddg(text);
   }
-  const pool=good.length?good:list;
   if(!deep){
-    // Обычный режим: лучшая статья из каждой энциклопедии (до 3 источников)
     const bestPerHost=[];
-    for(const h of HOSTS){const p=pool.find(x=>x.host===h);if(p)bestPerHost.push(p)}
-    const top=pool[0];
-    return {text:top.extract,link:top.fullurl,sources:bestPerHost.slice(0,4).map(p=>({title:p.title+' ('+p.host.split('.')[0]+')',link:p.fullurl}))};
+    for(const h of HOSTS){const p=good.find(x=>x.host===h);if(p)bestPerHost.push(p)}
+    const top=good[0];
+    return {text:stripArticle(top.extract),link:top.fullurl,sources:bestPerHost.slice(0,4).map(p=>({title:p.title+' ('+p.host.split('.')[0]+')',link:p.fullurl}))};
   }
-  // Глубокий режим: читаем полные статьи лучших кандидатов из разных энциклопедий
-  const cands=pool.slice(0,5);
+  const cands=good.slice(0,5);
   const texts=await Promise.all(cands.map(p=>fullText(p.pageid,p.host).catch(()=>'')));
   let picks=[];
-  cands.forEach((p,i)=>{
-    bestSentences(texts[i]||p.extract,text,4).forEach(x=>picks.push({x,p}));
-  });
+  cands.forEach((p,i)=>{bestSentences(texts[i]||p.extract,text,4).forEach(x=>picks.push({x,p}))});
   const picked=picks.sort((a,b)=>b.p.score-a.p.score).slice(0,6);
-  const answerText=picked.length?picked.map(o=>o.x).join(' '):cands[0].extract;
+  const answerText=picked.length?picked.map(o=>o.x).join(' '):stripArticle(cands[0].extract);
   const main=picked.length?picked[0].p:cands[0];
   return {text:answerText,link:main.fullurl,sources:cands.map(p=>({title:p.title+' ('+p.host.split('.')[0]+')',link:p.fullurl}))};
 }
