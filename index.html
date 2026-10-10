@@ -2,41 +2,24 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="theme-color" content="#000000">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Моя ИИ">
-
+<meta name="theme-color" content="#000000">
 <title>Моя ИИ</title>
 <style>
-:root{--bg:#000;--fg:#f1f2fb;--card:rgba(16,16,22,.62);--bot:rgba(30,30,40,.78);--line:rgba(255,255,255,.12);--mut:#8c91ad;--a:#6c5ce7;--b:#00b4d8;color-scheme:dark}
+:root{--bg:#000;--fg:#f1f2fb;--card:rgba(16,16,22,.62);--bot:rgba(30,30,40,.78);--line:rgba(255,255,255,.12);--mut:#8c91ad;--a:#6c5ce7;--b:#00b4d8;--ok:#2ecc71;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,system-ui,"SF Pro Text",sans-serif;display:flex;flex-direction:column;
-padding-top:env(safe-area-inset-top)}
-header{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
-.av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b));display:grid;place-items:center;font-size:22px;position:relative}
-.av::after{content:"";position:absolute;right:0;bottom:0;width:11px;height:11px;border-radius:50%;background:#2ecc71;border:2px solid var(--card)}
-.t{flex:1}.t b{display:block;font-size:17px}.t small{color:var(--mut);font-size:13px}
-#clr{background:none;border:1px solid var(--line);color:var(--mut);border-radius:14px;padding:6px 12px;font-size:13px}
-#chat{flex:1;overflow-y:auto;padding:16px 12px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
-.m{max-width:82%;padding:10px 14px;border-radius:20px;white-space:pre-wrap;word-wrap:break-word;animation:in .25s ease;box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.bot{background:var(--bot);align-self:flex-start;border-bottom-left-radius:6px}
-.me{background:linear-gradient(135deg,var(--a),var(--b));color:#fff;align-self:flex-end;border-bottom-right-radius:6px}
-.m a{display:block;margin-top:6px;font-size:13px;color:var(--a);text-decoration:none}
-@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-.dots span{display:inline-block;width:9px;height:9px;margin:0 3px;border-radius:50%;background:var(--mut);animation:b 1s infinite}
-.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
-@keyframes b{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
-#chips{display:flex;gap:8px;overflow-x:auto;padding:4px 12px 8px;scrollbar-width:none}
-#chips::-webkit-scrollbar{display:none}
-.chip{flex:none;background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:16px;padding:7px 13px;font-size:14px}
-#f{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;gap:8px;padding:8px 12px calc(10px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line)}
-#q{flex:1;min-width:0;font-size:16px;padding:11px 16px;border-radius:22px;border:1px solid var(--line);background:var(--bg);color:var(--fg);outline:none}
-#q:focus{border-color:var(--a)}
-#b{width:44px;height:44px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b));color:#fff;font-size:20px}
+body{background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,system-ui,"SF Pro Text",sans-serif;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);position:relative;overflow:hidden}
 header,#chat,#chips,#f{position:relative;z-index:1}
-body{position:relative;overflow:hidden}
+header{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+.av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b));display:grid;place-items:center;font-size:22px;position:relative;flex:none}
+.av::after{content:"";position:absolute;right:0;bottom:0;width:11px;height:11px;border-radius:50%;background:var(--ok);border:2px solid #111}
+.t{flex:1;min-width:0}.t b{display:block;font-size:17px}.t small{color:var(--mut);font-size:13px}
+.ib{background:none;border:1px solid var(--line);color:var(--mut);border-radius:14px;padding:6px 10px;font-size:15px;flex:none}
+.ib.on{border-color:var(--a);color:var(--fg);background:rgba(108,92,231,.25)}
+#clr{font-size:13px;padding:6px 12px}
 #orb{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 #drift{position:absolute;inset:0;animation:drift 22s ease-in-out infinite}
 #pulse{position:absolute;left:50%;top:44%;width:84vmin;height:84vmin;margin:-42vmin 0 0 -42vmin;transition:transform 1.2s ease,opacity 1.2s ease;opacity:.55}
@@ -48,30 +31,58 @@ body.thinking #pulse{transform:scale(1.22);opacity:.9}
 body.thinking #spin{animation-play-state:running}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes drift{0%,100%{transform:translate(0,0)}33%{transform:translate(7vmin,-5vmin)}66%{transform:translate(-6vmin,6vmin)}}
+#chat{flex:1;overflow-y:auto;padding:16px 12px;display:flex;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+.m{max-width:82%;padding:10px 14px;border-radius:20px;white-space:pre-wrap;word-wrap:break-word;animation:in .25s ease;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.bot{background:var(--bot);align-self:flex-start;border-bottom-left-radius:6px}
+.me{background:linear-gradient(135deg,var(--a),var(--b));color:#fff;align-self:flex-end;border-bottom-right-radius:6px}
+.m a{display:block;margin-top:6px;font-size:13px;color:#a79bff;text-decoration:none}
+.src{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:13px;color:var(--mut);white-space:normal}
+.src div{margin-top:3px}.src a{display:inline;margin:0;color:#a79bff}
+@keyframes in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.dots span{display:inline-block;width:9px;height:9px;margin:0 3px;border-radius:50%;background:var(--mut);animation:b 1s infinite}
+.dots span:nth-child(2){animation-delay:.15s}.dots span:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-5px);opacity:1}}
+#chips{display:flex;gap:8px;overflow-x:auto;padding:4px 12px 8px;scrollbar-width:none}
+#chips::-webkit-scrollbar{display:none}
+.chip{flex:none;background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:16px;padding:7px 13px;font-size:14px}
+#f{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;gap:8px;align-items:center;padding:8px 12px calc(10px + env(safe-area-inset-bottom));background:var(--card);border-top:1px solid var(--line)}
+#q{flex:1;min-width:0;font-size:16px;padding:11px 16px;border-radius:22px;border:1px solid var(--line);background:var(--bg);color:var(--fg);outline:none}
+#q:focus{border-color:var(--a)}
+#deep{width:40px;height:40px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--mut);font-size:17px}
+#deep.on{border-color:var(--a);background:rgba(108,92,231,.3);color:#fff}
+#b{width:44px;height:44px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b));color:#fff;font-size:20px}
 </style>
 </head>
 <body>
 <div id="orb"><div id="drift"><div id="pulse"><div id="spin"><i class="p"></i><i class="g"></i></div></div></div></div>
 <header>
   <div class="av">🤖</div>
-  <div class="t"><b>Моя ИИ</b><small>онлайн</small></div>
-  <button id="clr">Очистить</button>
+  <div class="t"><b>Моя ИИ</b><small id="st">онлайн</small></div>
+  <button id="src" class="ib" title="Показывать сайты">📚</button>
+  <button id="clr" class="ib">Очистить</button>
 </header>
 <div id="chat"></div>
 <div id="chips"></div>
-<div id="f"><input id="q" placeholder="Напиши вопрос…" autocomplete="off" enterkeyhint="send"><button id="b">➤</button></div>
+<div id="f">
+  <button id="deep" title="Глубокий поиск">🔎</button>
+  <input id="q" placeholder="Напиши вопрос…" autocomplete="off" enterkeyhint="send">
+  <button id="b">➤</button>
+</div>
 <script>
 const chat=document.getElementById('chat'),q=document.getElementById('q'),chips=document.getElementById('chips');
+const srcBtn=document.getElementById('src'),deepBtn=document.getElementById('deep'),st=document.getElementById('st');
 let base=[];
-const stopT=()=>document.body.classList.remove('thinking');
+const ls={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v==='1'}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v?'1':'0')}catch(e){}}};
+let showSrc=ls.get('showSrc',false), deep=ls.get('deep',false);
+function paintBtns(){srcBtn.classList.toggle('on',showSrc);deepBtn.classList.toggle('on',deep);st.textContent=deep?'глубокий поиск':'онлайн'}
+srcBtn.onclick=()=>{showSrc=!showSrc;ls.set('showSrc',showSrc);paintBtns();add(showSrc?'Теперь показываю, какие сайты я открыла 📚':'Список сайтов скрыт.','bot')};
+deepBtn.onclick=()=>{deep=!deep;ls.set('deep',deep);paintBtns();add(deep?'Глубокий поиск включён 🔎: проверяю несколько статей и выбираю самую подходящую. Это дольше, зато точнее.':'Глубокий поиск выключен, работаю быстро.','bot')};
+paintBtns();
+
 const STOP=new Set(['а','и','в','на','не','что','как','это','я','ты','мне','по','с','у','ли','то','же','такое','такой','такая','какой','какая','какие','кто','тебя','твой','меня','мой','чем','для','или','про','есть','можно','ну','вот']);
 const norm=s=>s.toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9\s]/g,' ').split(/\s+/).filter(Boolean);
 const key=s=>norm(s).sort().join(' ');
-
-function tokens(s){
-  return s.toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9\s]/g,' ')
-    .split(/\s+/).filter(w=>w&&!STOP.has(w)).map(w=>w.slice(0,5));
-}
+function tokens(s){return norm(s).filter(w=>!STOP.has(w)).map(w=>w.slice(0,5))}
 function parse(txt){
   const out=[];let cur=null;
   for(const raw of txt.split(/\r?\n/)){
@@ -79,9 +90,8 @@ function parse(txt){
     if(/^вопрос\s*:/i.test(l)){
       if(!cur||cur.a!==null){cur={qs:[],a:null};out.push(cur)}
       cur.qs.push(l.replace(/^вопрос\s*:/i,'').trim());
-    }else if(/^ответ\s*:/i.test(l)&&cur){
-      cur.a=l.replace(/^ответ\s*:/i,'').trim();
-    }else if(l&&cur&&cur.a!==null){cur.a+='\n'+l}
+    }else if(/^ответ\s*:/i.test(l)&&cur){cur.a=l.replace(/^ответ\s*:/i,'').trim()}
+    else if(l&&cur&&cur.a!==null){cur.a+='\n'+l}
   }
   return out.filter(e=>e.a!==null).map(e=>({...e,t:e.qs.map(tokens),k:e.qs.map(key)}));
 }
@@ -111,22 +121,63 @@ function special(text){
     return 'Сегодня '+d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' 📅';
   return null;
 }
-function add(t,c,link){
+function add(t,c,extra){
   const d=document.createElement('div');d.className='m '+c;d.textContent=t;
-  if(link){const a=document.createElement('a');a.href=link;a.target='_blank';a.textContent='Читать в Википедии →';d.appendChild(a)}
+  if(extra&&extra.link){const a=document.createElement('a');a.href=extra.link;a.target='_blank';a.textContent='Читать в Википедии →';d.appendChild(a)}
+  if(extra&&extra.sources&&showSrc&&extra.sources.length){
+    const box=document.createElement('div');box.className='src';box.textContent='Сайты, которые я посмотрела:';
+    extra.sources.forEach(s=>{const r=document.createElement('div');const a=document.createElement('a');a.href=s.link;a.target='_blank';a.textContent='• '+s.title;r.appendChild(a);box.appendChild(r)});
+    d.appendChild(box);
+  }
   chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;
 }
 function typing(){
-  document.body.classList.add('thinking');const d=add('','bot');d.innerHTML='<span class="dots"><span></span><span></span><span></span></span>';return d;
+  document.body.classList.add('thinking');
+  const d=add('','bot');d.innerHTML='<span class="dots"><span></span><span></span><span></span></span>';return d;
+}
+const stopT=()=>document.body.classList.remove('thinking');
+
+// Варианты запроса: от полного к короткому, чтобы найти статью даже для длинного вопроса
+function variants(text){
+  const clean=text.replace(/^(что такое|что такое|кто такой|кто такая|кто такие|что значит|расскажи про|расскажи о|расскажи|найди|что за|где находится|где|когда был|когда)\s+/i,'').replace(/[?!.,]+$/,'').trim();
+  const words=norm(clean).filter(w=>!STOP.has(w));
+  const v=[clean];
+  if(words.length>1)v.push(words.join(' '));
+  if(words.length>2)v.push(words.slice(0,2).join(' '));
+  if(words.length)v.push(words[0]);
+  return [...new Set(v.filter(Boolean))];
+}
+async function wikiSearch(query,limit,sentences){
+  const url='https://ru.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit='+limit
+    +'&gsrsearch='+encodeURIComponent(query)+'&prop=extracts|info&inprop=url&exintro=1&explaintext=1&exsentences='+sentences;
+  const j=await (await fetch(url)).json();
+  return j.query?Object.values(j.query.pages).sort((a,b)=>a.index-b.index):[];
+}
+// Оценка: насколько заголовок статьи совпадает с запросом
+function relevance(page,query){
+  const qw=norm(query).filter(w=>!STOP.has(w)).map(w=>w.slice(0,5));
+  const tw=norm(page.title||'').map(w=>w.slice(0,5));
+  if(!qw.length)return 0;
+  const hit=qw.filter(w=>tw.includes(w)).length;
+  const exact=norm(page.title||'').join(' ')===norm(query).join(' ')?1:0;
+  return hit/qw.length+exact;
 }
 async function wiki(text){
-  const clean=text.replace(/^(что такое|кто такой|кто такая|кто такие|что значит|расскажи про|расскажи о|найди|что за)\s+/i,'').replace(/[?!.]+$/,'').trim();
-  const url='https://ru.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=1'
-    +'&gsrsearch='+encodeURIComponent(clean)+'&prop=extracts|info&inprop=url&exintro=1&explaintext=1&exsentences=3';
-  const r=await fetch(url);const j=await r.json();
-  const p=j.query&&Object.values(j.query.pages)[0];
-  return p&&p.extract?{text:p.extract,link:p.fullurl}:null;
+  const vs=variants(text);
+  const seen=new Map();
+  for(const v of vs){
+    const pages=await wikiSearch(v,deep?5:2,deep?6:3);
+    for(const p of pages)if(p.extract&&!seen.has(p.pageid))seen.set(p.pageid,{...p,score:relevance(p,v)});
+    const best=[...seen.values()].sort((a,b)=>b.score-a.score)[0];
+    if(best&&best.score>=1&&!deep)break;
+  }
+  const list=[...seen.values()].sort((a,b)=>b.score-a.score);
+  if(!list.length)return null;
+  const top=list[0];
+  const sources=(deep?list.slice(0,4):list.slice(0,1)).map(p=>({title:p.title,link:p.fullurl}));
+  return {text:top.extract,link:top.fullurl,sources};
 }
+
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function send(text){
   const t=(text||q.value).trim();if(!t)return;
@@ -137,7 +188,8 @@ async function send(text){
   try{
     const w=await wiki(t);
     tp.remove();stopT();
-    w?add(w.text,'bot',w.link):add('Нигде не нашла ответа 🤷 Попробуй переформулировать или добавь вопрос в qa.txt.','bot');
+    w?add(w.text,'bot',{link:w.link,sources:w.sources})
+     :add('Нигде не нашла ответа 🤷 Попробуй переформулировать или добавь вопрос в qa.txt.','bot');
   }catch(e){tp.remove();stopT();add('Не удалось выйти в интернет.','bot')}
 }
 function hello(){add('Привет! Я твоя ИИ 👋 Знаю '+base.length+' тем, а остальное ищу в Википедии. Спрашивай!','bot')}
