@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-title" content="Моя ИИ">
 <meta name="theme-color" content="#000000">
 <title>Моя ИИ</title>
+<link rel="apple-touch-icon" href="logo.jpg">
+<link rel="icon" href="logo.jpg">
 <style>
 :root{--bg:#000;--fg:#f1f2fb;--card:rgba(16,16,22,.62);--bot:rgba(30,30,40,.78);--line:rgba(255,255,255,.12);--mut:#8c91ad;--a:#6c5ce7;--b:#00b4d8;--ok:#2ecc71;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -14,7 +16,8 @@ html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,system-ui,"SF Pro Text",sans-serif;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);position:relative;overflow:hidden}
 header,#chat,#chips,#f{position:relative;z-index:1}
 header{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
-.av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b));display:grid;place-items:center;font-size:22px;position:relative;flex:none}
+.av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b));display:grid;place-items:center;font-size:22px;position:relative;flex:none;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
 .av::after{content:"";position:absolute;right:0;bottom:0;width:11px;height:11px;border-radius:50%;background:var(--ok);border:2px solid #111}
 .t{flex:1;min-width:0}.t b{display:block;font-size:17px}.t small{color:var(--mut);font-size:13px}
 .ib{background:none;border:1px solid var(--line);color:var(--mut);border-radius:14px;padding:6px 10px;font-size:15px;flex:none}
@@ -56,7 +59,7 @@ body.thinking #spin{animation-play-state:running}
 <body>
 <div id="orb"><div id="drift"><div id="pulse"><div id="spin"><i class="p"></i><i class="g"></i></div></div></div></div>
 <header>
-  <div class="av">🤖</div>
+  <div class="av"><img src="logo.jpg" alt="Логотип" onerror="this.remove();this.parentNode.textContent='🤖'"></div>
   <div class="t"><b>Моя ИИ</b><small id="st">онлайн</small></div>
   <button id="src" class="ib" title="Показывать сайты">📚</button>
   <button id="clr" class="ib">Очистить</button>
