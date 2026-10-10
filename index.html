@@ -49,7 +49,9 @@ header{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var
 <script>
 const chat=document.getElementById('chat'),q=document.getElementById('q'),chips=document.getElementById('chips');
 let base=[];
-const STOP=new Set(['а','и','в','на','не','что','как','это','я','ты','мне','по','с','у','ли','то','же','такое','какой','какая']);
+const STOP=new Set(['а','и','в','на','не','что','как','это','я','ты','мне','по','с','у','ли','то','же','такое','такой','такая','какой','какая','какие','кто','тебя','твой','меня','мой','чем','для','или','про','есть','можно','ну','вот']);
+const norm=s=>s.toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9\s]/g,' ').split(/\s+/).filter(Boolean);
+const key=s=>norm(s).sort().join(' ');
 
 function tokens(s){
   return s.toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9\s]/g,' ')
@@ -66,9 +68,10 @@ function parse(txt){
       cur.a=l.replace(/^ответ\s*:/i,'').trim();
     }else if(l&&cur&&cur.a!==null){cur.a+='\n'+l}
   }
-  return out.filter(e=>e.a!==null).map(e=>({...e,t:e.qs.map(tokens)}));
+  return out.filter(e=>e.a!==null).map(e=>({...e,t:e.qs.map(tokens),k:e.qs.map(key)}));
 }
 function answer(text){
+  const k=key(text);for(const e of base)if(e.k.includes(k))return e.a;
   const u=tokens(text);let best=0,ans=null;
   if(!u.length)return null;
   for(const e of base)for(const t of e.t){
@@ -77,7 +80,7 @@ function answer(text){
     const score=2*hit/(u.length+t.length);
     if(score>best){best=score;ans=e.a}
   }
-  return best>=0.45?ans:null;
+  return best>=0.6?ans:null;
 }
 function special(text){
   const s=text.toLowerCase().replace(/ё/g,'е').trim();
