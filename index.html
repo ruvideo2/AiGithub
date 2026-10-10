@@ -123,7 +123,7 @@ function special(text){
 }
 function add(t,c,extra){
   const d=document.createElement('div');d.className='m '+c;d.textContent=t;
-  if(extra&&extra.link){const a=document.createElement('a');a.href=extra.link;a.target='_blank';a.textContent='Читать в Википедии →';d.appendChild(a)}
+  if(extra&&extra.link){const a=document.createElement('a');a.href=extra.link;a.target='_blank';a.textContent='Читать источник →';d.appendChild(a)}
   if(extra&&extra.sources&&showSrc&&extra.sources.length){
     const box=document.createElement('div');box.className='src';box.textContent='Сайты, которые я посмотрела:';
     extra.sources.forEach(s=>{const r=document.createElement('div');const a=document.createElement('a');a.href=s.link;a.target='_blank';a.textContent='• '+s.title;r.appendChild(a);box.appendChild(r)});
@@ -138,8 +138,15 @@ function typing(){
 const stopT=()=>document.body.classList.remove('thinking');
 
 // Варианты запроса: от полного к короткому, чтобы найти статью даже для длинного вопроса
+async function suggest(text){
+  try{
+    const url='https://ru.wikipedia.org/w/api.php?action=query&format=json&origin=*&list=search&srinfo=suggestion&srprop=&srlimit=1&srsearch='+encodeURIComponent(text);
+    const j=await (await fetch(url)).json();
+    return j.query&&j.query.searchinfo&&j.query.searchinfo.suggestion||null;
+  }catch(e){return null}
+}
 function variants(text){
-  const clean=text.replace(/^(что такое|что такое|кто такой|кто такая|кто такие|что значит|расскажи про|расскажи о|расскажи|найди|что за|где находится|где|когда был|когда)\s+/i,'').replace(/[?!.,]+$/,'').trim();
+  const clean=text.replace(/^(что такое|кто такой|кто такая|кто такие|что значит|расскажи про|расскажи о|расскажи|найди|что за|где находится|где|когда был|когда)\s+/i,'').replace(/\s+(кто это|что это|кто такой|кто такая|что такое|кто он|кто она)$/i,'').replace(/[?!.,]+$/,'').trim();
   const words=norm(clean).filter(w=>!STOP.has(w));
   const v=[clean];
   if(words.length>1)v.push(words.join(' '));
@@ -147,8 +154,8 @@ function variants(text){
   if(words.length)v.push(words[0]);
   return [...new Set(v.filter(Boolean))];
 }
-async function wikiSearch(query,limit,sentences){
-  const url='https://ru.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit='+limit
+async function wikiSearch(query,limit,sentences,host){
+  const url='https://'+(host||'ru.wikipedia.org')+'/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit='+limit
     +'&gsrsearch='+encodeURIComponent(query)+'&prop=extracts|info&inprop=url&exintro=1&explaintext=1&exsentences='+sentences;
   const j=await (await fetch(url)).json();
   return j.query?Object.values(j.query.pages).sort((a,b)=>a.index-b.index):[];
@@ -162,8 +169,8 @@ function relevance(page,query){
   const exact=norm(page.title||'').join(' ')===norm(query).join(' ')?1:0;
   return hit/qw.length+exact;
 }
-async function fullText(pageid){
-  const url='https://ru.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&explaintext=1&pageids='+pageid;
+async function fullText(pageid,host){
+  const url='https://'+(host||'ru.wikipedia.org')+'/w/api.php?action=query&format=json&origin=*&prop=extracts&explaintext=1&pageids='+pageid;
   const j=await (await fetch(url)).json();
   const p=j.query&&j.query.pages&&j.query.pages[pageid];
   return p&&p.extract?p.extract.slice(0,30000):'';
@@ -181,24 +188,47 @@ function bestSentences(text,query,n){
   scored.sort((a,b)=>b.score-a.score||a.i-b.i);
   return scored.slice(0,n).sort((a,b)=>a.i-b.i).map(o=>o.x);
 }
+// DuckDuckGo: быстрые справки (JSONP, работает из браузера без ключа)
+function ddg(q){
+  return new Promise(res=>{
+    const cb='ddg'+Date.now()+Math.floor(Math.random()*1000);
+    const sc=document.createElement('script');
+    const done=v=>{delete window[cb];sc.remove();res(v)};
+    window[cb]=d=>done(d&&d.AbstractText?{text:d.AbstractText,link:d.AbstractURL,sources:[{title:d.AbstractSource||'DuckDuckGo',link:d.AbstractURL||'https://duckduckgo.com/?q='+encodeURIComponent(q)}]}:null);
+    sc.onerror=()=>done(null);
+    sc.src='https://api.duckduckgo.com/?q='+encodeURIComponent(q)+'&format=json&no_html=1&skip_disambig=1&callback='+cb;
+    document.body.appendChild(sc);
+    setTimeout(()=>done(null),6000);
+  });
+}
 async function wiki(text){
   const vs=variants(text);
-  const seen=new Map();
-  for(const v of vs){
-    const pages=await wikiSearch(v,deep?6:2,deep?3:3);
-    for(const p of pages)if(p.extract&&!seen.has(p.pageid))seen.set(p.pageid,{...p,score:relevance(p,v)});
-    const best=[...seen.values()].sort((a,b)=>b.score-a.score)[0];
-    if(best&&best.score>=1&&!deep)break;
+  const fix=await suggest(vs[0]);
+  if(fix&&fix.toLowerCase()!==vs[0].toLowerCase())vs.unshift(fix);
+  let list=[];
+  // Сначала русская Википедия, потом английская
+  for(const host of ['ru.wikipedia.org','en.wikipedia.org']){
+    const seen=new Map();
+    for(const v of vs){
+      const pages=await wikiSearch(v,deep?6:2,deep?3:3,host);
+      for(const p of pages)if(p.extract&&!seen.has(p.pageid))seen.set(p.pageid,{...p,host,score:relevance(p,v)});
+      const best=[...seen.values()].sort((a,b)=>b.score-a.score)[0];
+      if(best&&best.score>=1&&!deep)break;
+    }
+    list=[...seen.values()].sort((a,b)=>b.score-a.score);
+    if(list.length&&list[0].score>=0.5)break;
   }
-  const list=[...seen.values()].sort((a,b)=>b.score-a.score);
-  if(!list.length)return null;
+  if(!list.length){
+    // Последний вариант: быстрые справки DuckDuckGo
+    return await ddg(text);
+  }
   if(!deep){
     const top=list[0];
     return {text:top.extract,link:top.fullurl,sources:[{title:top.title,link:top.fullurl}]};
   }
   // Глубокий режим: читаем полные статьи лучших кандидатов и отбираем нужные предложения
   const cands=list.slice(0,3);
-  const texts=await Promise.all(cands.map(p=>fullText(p.pageid).catch(()=>'')));
+  const texts=await Promise.all(cands.map(p=>fullText(p.pageid,p.host).catch(()=>'')));
   let pool=[];
   cands.forEach((p,i)=>{
     const sents=bestSentences(texts[i]||p.extract,text,4).map(x=>({x,p}));
@@ -218,7 +248,10 @@ async function send(text){
   const local=special(t)||answer(t);
   if(local){await wait(900);tp.remove();stopT();add(local,'bot');return}
   try{
-    const w=await wiki(t);
+    const prevDeep=deep;
+    deep=true;
+    let w=null;
+    try{ w=await wiki(t) }finally{ deep=prevDeep }
     tp.remove();stopT();
     w?add(w.text,'bot',{link:w.link,sources:w.sources})
      :add('Нигде не нашла ответа 🤷 Попробуй переформулировать или добавь вопрос в qa.txt.','bot');
