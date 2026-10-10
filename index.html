@@ -60,14 +60,32 @@ function answer(text){
   }
   return best>=0.4?ans:null;
 }
-function add(t,c){
+function add(t,c,link){
   const d=document.createElement('div');d.className='m '+c;d.textContent=t;
-  chat.appendChild(d);chat.scrollTop=chat.scrollHeight;
+  if(link){d.appendChild(document.createElement('br'));
+    const a=document.createElement('a');a.href=link;a.target='_blank';a.textContent='Источник: Википедия';
+    a.style.cssText='font-size:13px;color:inherit;opacity:.7';d.appendChild(a)}
+  chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;
 }
-function send(){
+async function wiki(text){
+  const clean=text.replace(/^(что такое|кто такой|кто такая|кто такие|что значит|расскажи про|расскажи о|найди|что за)\s+/i,'').replace(/[?!.]+$/,'').trim();
+  const url='https://ru.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=1'
+    +'&gsrsearch='+encodeURIComponent(clean)+'&prop=extracts|info&inprop=url&exintro=1&explaintext=1&exsentences=3';
+  const r=await fetch(url);const j=await r.json();
+  const p=j.query&&Object.values(j.query.pages)[0];
+  return p&&p.extract?{text:p.extract,link:p.fullurl}:null;
+}
+async function send(){
   const t=q.value.trim();if(!t)return;
   add(t,'me');q.value='';
-  setTimeout(()=>add(answer(t)||'Не знаю ответа. Добавь этот вопрос в qa.txt 🙂','bot'),250);
+  const a=answer(t);
+  if(a){setTimeout(()=>add(a,'bot'),250);return}
+  const wait=add('Ищу в интернете…','bot');
+  try{
+    const w=await wiki(t);
+    wait.remove();
+    w?add(w.text,'bot',w.link):add('Нигде не нашла ответа. Попробуй переформулировать или добавь вопрос в qa.txt.','bot');
+  }catch(e){wait.remove();add('Не удалось выйти в интернет.','bot')}
 }
 document.getElementById('b').onclick=send;
 q.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
