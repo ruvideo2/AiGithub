@@ -121,8 +121,17 @@ function special(text){
     return 'Сегодня '+d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' 📅';
   return null;
 }
+function clean(t){
+  if(!t)return t;
+  let x=t;
+  // обрезаем служебные разделы в конце статьи
+  const cut=x.search(/==\s*(Примечания|Ссылки|См\. также|Литература|Источники)\s*==|\/\/ /);
+  if(cut>0)x=x.slice(0,cut);
+  x=x.replace(/==+[^=\n]+==+/g,' ').replace(/\s+/g,' ').trim();
+  return x;
+}
 function add(t,c,extra){
-  const d=document.createElement('div');d.className='m '+c;d.textContent=t;
+  const d=document.createElement('div');d.className='m '+c;d.textContent=c==='bot'?clean(t):t;
   if(extra&&extra.link){const a=document.createElement('a');a.href=extra.link;a.target='_blank';a.textContent='Читать источник →';d.appendChild(a)}
   if(extra&&extra.sources&&showSrc&&extra.sources.length){
     const box=document.createElement('div');box.className='src';box.textContent='Сайты, которые я посмотрела:';
@@ -244,6 +253,10 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function send(text){
   const t=(text||q.value).trim();if(!t)return;
   add(t,'me');q.value='';
+  if(/(сделай|напиши|создай|сгенерируй)\s+(мне\s+)?(скрипт|код|программу|программу|сайт|игру|бота|приложение)/i.test(t)){
+    add('Писать код я без настоящего ИИ не умею 😅 Я только нахожу готовые ответы в базе и статьях. Могу найти статью о Python или HTML, а скрипт напиши сам или попроси модель, которая умеет программировать.','bot');
+    return;
+  }
   const tp=typing();
   const local=special(t)||answer(t);
   if(local){await wait(900);tp.remove();stopT();add(local,'bot');return}
