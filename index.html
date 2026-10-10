@@ -162,20 +162,52 @@ function relevance(page,query){
   const exact=norm(page.title||'').join(' ')===norm(query).join(' ')?1:0;
   return hit/qw.length+exact;
 }
+async function fullText(pageid){
+  const url='https://ru.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=extracts&explaintext=1&pageids='+pageid;
+  const j=await (await fetch(url)).json();
+  const p=j.query&&j.query.pages&&j.query.pages[pageid];
+  return p&&p.extract?p.extract.slice(0,30000):'';
+}
+// Выбирает предложения из статьи, которые ближе всего к смыслу вопроса
+function bestSentences(text,query,n){
+  const qw=[...new Set(norm(query).filter(w=>!STOP.has(w)).map(w=>w.slice(0,5)))];
+  if(!qw.length)return [];
+  const sents=text.replace(/\s+/g,' ').split(/(?<=[.!?])\s+/).filter(x=>x.length>30);
+  const scored=sents.map((x,i)=>{
+    const tw=new Set(norm(x).map(w=>w.slice(0,5)));
+    const hit=qw.filter(w=>tw.has(w)).length;
+    return {x,i,score:hit/qw.length*(1+(hit>1?0.3:0))};
+  }).filter(o=>o.score>0);
+  scored.sort((a,b)=>b.score-a.score||a.i-b.i);
+  return scored.slice(0,n).sort((a,b)=>a.i-b.i).map(o=>o.x);
+}
 async function wiki(text){
   const vs=variants(text);
   const seen=new Map();
   for(const v of vs){
-    const pages=await wikiSearch(v,deep?5:2,deep?6:3);
+    const pages=await wikiSearch(v,deep?6:2,deep?3:3);
     for(const p of pages)if(p.extract&&!seen.has(p.pageid))seen.set(p.pageid,{...p,score:relevance(p,v)});
     const best=[...seen.values()].sort((a,b)=>b.score-a.score)[0];
     if(best&&best.score>=1&&!deep)break;
   }
   const list=[...seen.values()].sort((a,b)=>b.score-a.score);
   if(!list.length)return null;
-  const top=list[0];
-  const sources=(deep?list.slice(0,4):list.slice(0,1)).map(p=>({title:p.title,link:p.fullurl}));
-  return {text:top.extract,link:top.fullurl,sources};
+  if(!deep){
+    const top=list[0];
+    return {text:top.extract,link:top.fullurl,sources:[{title:top.title,link:top.fullurl}]};
+  }
+  // Глубокий режим: читаем полные статьи лучших кандидатов и отбираем нужные предложения
+  const cands=list.slice(0,3);
+  const texts=await Promise.all(cands.map(p=>fullText(p.pageid).catch(()=>'')));
+  let pool=[];
+  cands.forEach((p,i)=>{
+    const sents=bestSentences(texts[i]||p.extract,text,4).map(x=>({x,p}));
+    pool.push(...sents);
+  });
+  const picked=pool.sort((a,b)=>b.p.score-a.p.score).slice(0,5);
+  const answerText=picked.length?picked.map(o=>o.x).join(' '):cands[0].extract;
+  const main=picked.length?picked[0].p:cands[0];
+  return {text:answerText,link:main.fullurl,sources:cands.map(p=>({title:p.title,link:p.fullurl}))};
 }
 
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
