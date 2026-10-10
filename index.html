@@ -18,7 +18,6 @@ header,#chat,#chips,#f{position:relative;z-index:1}
 header{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
 .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b));display:grid;place-items:center;font-size:22px;position:relative;flex:none;overflow:hidden}
 .av img{width:100%;height:100%;object-fit:cover;display:block}
-.av::after{content:"";position:absolute;right:0;bottom:0;width:11px;height:11px;border-radius:50%;background:var(--ok);border:2px solid #111}
 .t{flex:1;min-width:0}.t b{display:block;font-size:17px}.t small{color:var(--mut);font-size:13px}
 .ib{background:none;border:1px solid var(--line);color:var(--mut);border-radius:14px;padding:6px 10px;font-size:15px;flex:none}
 .ib.on{border-color:var(--a);color:var(--fg);background:rgba(108,92,231,.25)}
@@ -54,22 +53,55 @@ body.thinking #spin{animation-play-state:running}
 #deep{width:40px;height:40px;flex:none;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--mut);font-size:17px}
 #deep.on{border-color:var(--a);background:rgba(108,92,231,.3);color:#fff}
 #b{width:44px;height:44px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b));color:#fff;font-size:20px}
+
+/* ===== Улучшенные кнопки и интерфейс ===== */
+header{padding:10px 14px;gap:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+.av{width:44px;height:44px;box-shadow:0 0 0 2px rgba(108,92,231,.35),0 4px 14px rgba(108,92,231,.35)}
+.t b{font-weight:650;letter-spacing:.2px}
+.ib{display:grid;place-items:center;width:38px;height:38px;padding:0;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);transition:transform .15s,background .2s,border-color .2s,box-shadow .2s;cursor:pointer}
+.ib:active{transform:scale(.92)}
+.ib:hover{background:rgba(255,255,255,.08)}
+.ib.on{background:linear-gradient(135deg,rgba(108,92,231,.55),rgba(0,180,216,.45));border-color:transparent;box-shadow:0 0 12px rgba(108,92,231,.45)}
+#clr{width:auto;padding:0 12px;font-size:13px;font-weight:500;color:var(--fg);height:34px}
+#chat{padding:18px 14px;gap:12px}
+.m{font-size:15.5px;line-height:1.5;transition:transform .2s}
+.bot{border:1px solid rgba(255,255,255,.07);backdrop-filter:blur(8px)}
+.me{box-shadow:0 4px 14px rgba(108,92,231,.28)}
+.m a{display:inline-flex;align-items:center;gap:4px;margin-top:8px;padding:4px 10px;border-radius:999px;background:rgba(108,92,231,.18);color:#c9c2ff;font-size:12.5px;font-weight:500;transition:background .2s}
+.m a:hover,.m a:active{background:rgba(108,92,231,.35)}
+.src{border-top:1px solid rgba(255,255,255,.1)}
+.src a{display:block;margin-top:4px;padding:0;background:none;color:#b3aaff;font-size:12.5px}
+#chips{padding:6px 14px 10px;gap:8px}
+.chip{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:999px;padding:8px 14px;font-size:13.5px;color:var(--fg);transition:transform .15s,background .2s,border-color .2s;white-space:nowrap;cursor:pointer}
+.chip:hover{background:rgba(108,92,231,.18);border-color:rgba(108,92,231,.5)}
+.chip:active{transform:scale(.95)}
+#f{padding:10px 12px calc(12px + env(safe-area-inset-bottom));gap:8px;border-top:1px solid rgba(255,255,255,.08);background:rgba(10,10,14,.7)}
+#q{height:46px;padding:0 18px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);transition:border-color .2s,box-shadow .2s;font-size:16px}
+#q::placeholder{color:var(--mut)}
+#q:focus{border-color:rgba(108,92,231,.7);box-shadow:0 0 0 3px rgba(108,92,231,.18)}
+#deep{width:46px;height:46px;font-size:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);transition:transform .15s,background .2s,box-shadow .2s;cursor:pointer}
+#deep:active{transform:scale(.92)}
+#deep.on{background:linear-gradient(135deg,rgba(108,92,231,.6),rgba(0,180,216,.5));box-shadow:0 0 12px rgba(108,92,231,.5)}
+#b{width:46px;height:46px;font-size:18px;display:grid;place-items:center;box-shadow:0 4px 14px rgba(108,92,231,.4);transition:transform .15s,opacity .2s;cursor:pointer}
+#b:active{transform:scale(.9)}
+#b:disabled{opacity:.5}
+.dots span{width:8px;height:8px;margin:0 3px}
 </style>
 </head>
 <body>
 <div id="orb"><div id="drift"><div id="pulse"><div id="spin"><i class="p"></i><i class="g"></i></div></div></div></div>
 <header>
-  <div class="av"><img src="logo.jpg" alt="Логотип" onerror="this.remove();this.parentNode.textContent='🤖'"></div>
+  <div class="av"><img src="logo.jpg" alt="Логотип" onerror="this.parentNode.innerHTML='<svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"4\" y=\"7\" width=\"16\" height=\"12\" rx=\"4\"/><path d=\"M12 3v4M9 13h.01M15 13h.01M9 17h6\"/></svg>'"></div>
   <div class="t"><b>Моя ИИ</b><small id="st">онлайн</small></div>
-  <button id="src" class="ib" title="Показывать сайты">📚</button>
+  <button id="src" class="ib" title="Показывать сайты"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6"/></svg></button>
   <button id="clr" class="ib">Очистить</button>
 </header>
 <div id="chat"></div>
 <div id="chips"></div>
 <div id="f">
-  <button id="deep" title="Глубокий поиск">🔎</button>
+  <button id="deep" title="Глубокий поиск"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></button>
   <input id="q" placeholder="Напиши вопрос…" autocomplete="off" enterkeyhint="send">
-  <button id="b">➤</button>
+  <button id="b" aria-label="Отправить"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
 </div>
 <script>
 const chat=document.getElementById('chat'),q=document.getElementById('q'),chips=document.getElementById('chips');
@@ -78,8 +110,8 @@ let base=[];
 const ls={get(k,d){try{const v=localStorage.getItem(k);return v===null?d:v==='1'}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v?'1':'0')}catch(e){}}};
 let showSrc=ls.get('showSrc',false), deep=ls.get('deep',false);
 function paintBtns(){srcBtn.classList.toggle('on',showSrc);deepBtn.classList.toggle('on',deep);st.textContent=deep?'глубокий поиск':'онлайн'}
-srcBtn.onclick=()=>{showSrc=!showSrc;ls.set('showSrc',showSrc);paintBtns();add(showSrc?'Теперь показываю, какие сайты я открыла 📚':'Список сайтов скрыт.','bot')};
-deepBtn.onclick=()=>{deep=!deep;ls.set('deep',deep);paintBtns();add(deep?'Глубокий поиск включён 🔎: проверяю несколько статей и выбираю самую подходящую. Это дольше, зато точнее.':'Глубокий поиск выключен, работаю быстро.','bot')};
+srcBtn.onclick=()=>{showSrc=!showSrc;ls.set('showSrc',showSrc);paintBtns();add(showSrc?'Теперь показываю, какие сайты я открыла.':'Список сайтов скрыт.','bot')};
+deepBtn.onclick=()=>{deep=!deep;ls.set('deep',deep);paintBtns();add(deep?'Глубокий поиск включён: проверяю несколько статей и выбираю самую подходящую. Это дольше, зато точнее.':'Глубокий поиск выключен, работаю быстро.','bot')};
 paintBtns();
 
 const STOP=new Set(['а','и','в','на','не','что','как','это','я','ты','мне','по','с','у','ли','то','же','такое','такой','такая','какой','какая','какие','кто','тебя','твой','меня','мой','чем','для','или','про','есть','можно','ну','вот']);
@@ -119,9 +151,9 @@ function special(text){
   }
   const d=new Date();
   if(/(который час|сколько времени|сколько сейчас времени)/.test(s))
-    return 'Сейчас '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+' ⏰';
+    return 'Сейчас '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+';
   if(/(какое сегодня число|какая сегодня дата|какой сегодня день|какое число)/.test(s))
-    return 'Сегодня '+d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+' 📅';
+    return 'Сегодня '+d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+';
   return null;
 }
 function clean(t){
@@ -257,7 +289,7 @@ async function send(text){
   const t=(text||q.value).trim();if(!t)return;
   add(t,'me');q.value='';
   if(/(сделай|напиши|создай|сгенерируй)\s+(мне\s+)?(скрипт|код|программу|программу|сайт|игру|бота|приложение)/i.test(t)){
-    add('Писать код я без настоящего ИИ не умею 😅 Я только нахожу готовые ответы в базе и статьях. Могу найти статью о Python или HTML, а скрипт напиши сам или попроси модель, которая умеет программировать.','bot');
+    add('Писать код я без настоящего ИИ не умею. Я только нахожу готовые ответы в базе и статьях. Могу найти статью о Python или HTML, а скрипт напиши сам или попроси модель, которая умеет программировать.','bot');
     return;
   }
   const tp=typing();
@@ -270,10 +302,10 @@ async function send(text){
     try{ w=await wiki(t) }finally{ deep=prevDeep }
     tp.remove();stopT();
     w?add(w.text,'bot',{link:w.link,sources:w.sources})
-     :add('Нигде не нашла ответа 🤷 Попробуй переформулировать или добавь вопрос в qa.txt.','bot');
+     :add('Нигде не нашла ответа. Попробуй переформулировать или добавь вопрос в qa.txt.','bot');
   }catch(e){tp.remove();stopT();add('Не удалось выйти в интернет.','bot')}
 }
-function hello(){add('Привет! Я твоя ИИ 👋 Знаю '+base.length+' тем, а остальное ищу в Википедии. Спрашивай!','bot')}
+function hello(){add('Привет! Я твоя ИИ. Знаю '+base.length+' тем, а остальное ищу в Википедии. Спрашивай!','bot')}
 document.getElementById('b').onclick=()=>send();
 q.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
 document.getElementById('clr').onclick=()=>{chat.innerHTML='';hello()};
