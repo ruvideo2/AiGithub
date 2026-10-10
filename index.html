@@ -300,18 +300,50 @@ async function searchHost(vs,host,text){
       // хорошая статья: содержит все главные слова вопроса (или большую их часть, если слов много)
       const n=termCount(qText);
       const good=cov>=0.99||(n>=3&&cov>=0.66);
-      seen.set(p.pageid,{...p,host,cov,good,score:cov*0.7+relevance(p,qv)*0.3});
+      seen.set(p.pageid,{...p,host,wiki:true,cov,good,score:cov*0.7+relevance(p,qv)*0.3});
     }
     const best=[...seen.values()].filter(x=>x.good).sort((a,b)=>b.score-a.score)[0];
     if(best&&!deep)break;
   }
   return [...seen.values()].sort((a,b)=>b.score-a.score);
 }
+// Другие бесплатные источники, которые открываются из браузера без ключа
+async function getJson(url){
+  try{const r=await fetch(url);return await r.json()}catch(e){return null}
+}
+async function extraSources(text){
+  const q=encodeURIComponent(text);
+  const [hn,gh,ol,wn]=await Promise.all([
+    getJson('https://hn.algolia.com/api/v1/search?tags=story&hitsPerPage=5&query='+q),
+    getJson('https://api.github.com/search/repositories?per_page=5&q='+q),
+    getJson('https://openlibrary.org/search.json?limit=5&q='+q),
+    getJson('https://ru.wikinews.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrlimit=5&prop=extracts|info&inprop=url&exintro=1&explaintext=1&exsentences=3&gsrsearch='+q)
+  ]);
+  const items=[];
+  ((hn&&hn.hits)||[]).forEach(h=>items.push({
+    title:h.title||'Hacker News',extract:(h.title||'')+'. Очки: '+(h.points||0),
+    fullurl:h.url||('https://news.ycombinator.com/item?id='+h.objectID),host:'hackernews',wiki:false}));
+  ((gh&&gh.items)||[]).forEach(it=>items.push({
+    title:it.full_name,extract:it.full_name+'. '+(it.description||''),
+    fullurl:it.html_url,host:'github',wiki:false}));
+  ((ol&&ol.docs)||[]).forEach(d=>items.push({
+    title:d.title||'Книга',
+    extract:(d.title||'')+(d.author_name?'. Автор: '+d.author_name[0]:'')+(d.first_publish_year?'. Год: '+d.first_publish_year:''),
+    fullurl:'https://openlibrary.org'+(d.key||''),host:'openlibrary',wiki:false}));
+  const pages=(wn&&wn.query&&wn.query.pages)?Object.values(wn.query.pages):[];
+  pages.forEach(p=>{if(p.extract)items.push({title:p.title,extract:p.extract,fullurl:p.fullurl,host:'wikinews',wiki:false})});
+  const n=termCount(text);
+  return items.map(p=>{
+    const cov=coverage((p.title||'')+' '+p.extract,text);
+    const good=cov>=0.99||(n>=3&&cov>=0.66);
+    return {...p,cov,good,score:cov*0.7,pageid:null};
+  });
+}
 async function wiki(text){
   const vs=variants(text);
   const fix=await suggest(vs[0]);
   if(fix&&fix.toLowerCase()!==vs[0].toLowerCase())vs.unshift(fix);
-  const results=await Promise.all(HOSTS.map(h=>searchHost(vs,h,text)));
+  const results=await Promise.all([...HOSTS.map(h=>searchHost(vs,h,text)),extraSources(text)]);
   const list=results.flat().sort((a,b)=>b.score-a.score);
   const good=list.filter(p=>p.good);
   if(!good.length){
@@ -325,7 +357,7 @@ async function wiki(text){
     return {text:stripArticle(top.extract),link:top.fullurl,sources:bestPerHost.slice(0,4).map(p=>({title:p.title+' ('+p.host.split('.')[0]+')',link:p.fullurl}))};
   }
   const cands=good.slice(0,5);
-  const texts=await Promise.all(cands.map(p=>fullText(p.pageid,p.host).catch(()=>'')));
+  const texts=await Promise.all(cands.map(p=>p.wiki?fullText(p.pageid,p.host).catch(()=>''):Promise.resolve(p.extract)));
   let picks=[];
   cands.forEach((p,i)=>{bestSentences(texts[i]||p.extract,text,4).forEach(x=>picks.push({x,p}))});
   const picked=picks.sort((a,b)=>b.p.score-a.p.score).slice(0,6);
