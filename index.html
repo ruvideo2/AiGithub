@@ -271,14 +271,23 @@ const HOSTS=['ru.wikipedia.org','en.wikipedia.org','uk.wikipedia.org','de.wikipe
 // Частые слова, которые переводим для английских энциклопедий
 const EN={'айфон':'iphone','айфона':'iphone','айфоны':'iphone','айпад':'ipad','мак':'mac','самсунг':'samsung','гугл':'google','ютуб':'youtube','телеграм':'telegram','андроид':'android','виндовс':'windows','тесла':'tesla','нейросеть':'neural network'};
 function toEn(t){return t.toLowerCase().split(/\s+/).map(w=>EN[w]||w).join(' ')}
-// Какая доля главных слов вопроса есть в тексте статьи
-function coverage(extract,text){
-  const terms=[...new Set(norm(text).filter(w=>!STOP.has(w)&&w.length>2).map(w=>w.slice(0,5)))];
-  if(!terms.length)return 0;
-  const body=new Set(norm(extract||'').map(w=>w.slice(0,5)));
-  return terms.filter(t=>body.has(t)).length/terms.length;
+// Слова, которые не обязательны в статье (общие, оценочные)
+const GENERIC=new Set(['последний','последняя','последнее','новый','новая','новое','самый','самая','лучший','лучшая','актуальный','сейчас','текущий','какой','какая','какие','каком','года','году']);
+function mainTerms(text){
+  return [...new Set(norm(text).filter(w=>!STOP.has(w)&&!GENERIC.has(w)&&w.length>2))];
 }
-function termCount(text){return new Set(norm(text).filter(w=>!STOP.has(w)&&w.length>2)).size}
+// Какая доля главных слов вопроса есть в тексте статьи (с учётом переводов)
+function coverage(extract,text){
+  const terms=mainTerms(text);
+  if(!terms.length)return 0;
+  const words=new Set(norm(extract||'').map(w=>w.slice(0,5)));
+  const hit=terms.filter(t=>{
+    const en=EN[t]?toEn(t).split(' ')[0].slice(0,5):null;
+    return words.has(t.slice(0,5))||(en&&words.has(en));
+  });
+  return hit.length/terms.length;
+}
+function termCount(text){return mainTerms(text).length}
 async function searchHost(vs,host,text){
   const isEn=/^(en|simple)\./.test(host);
   const qText=isEn?toEn(text):text;
