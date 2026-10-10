@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Моя ИИ">
+<title>Моя ИИ</title>
+<style>
+:root{--bg:#fff;--fg:#111;--bot:#eee;--me:#2f6fed;--line:#ddd;color-scheme:light dark}
+@media(prefers-color-scheme:dark){:root{--bg:#111;--fg:#f2f2f2;--bot:#262626;--line:#333}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:16px/1.4 -apple-system,system-ui,sans-serif;display:flex;flex-direction:column;
+padding-top:env(safe-area-inset-top)}
+header{padding:12px 16px;font-weight:600;border-bottom:1px solid var(--line)}
+#chat{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px}
+.m{max-width:80%;padding:9px 13px;border-radius:18px;white-space:pre-wrap;word-wrap:break-word}
+.bot{background:var(--bot);align-self:flex-start}
+.me{background:var(--me);color:#fff;align-self:flex-end}
+#f{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+#q{flex:1;font-size:16px;padding:10px 14px;border-radius:20px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+button{font-size:16px;border:0;border-radius:20px;padding:0 18px;background:var(--me);color:#fff}
+</style>
+</head>
+<body>
+<header>🤖 Моя ИИ</header>
+<div id="chat"></div>
+<div id="f"><input id="q" placeholder="Напиши вопрос…" autocomplete="off"><button id="b">→</button></div>
+<script>
+const chat=document.getElementById('chat'),q=document.getElementById('q');
+let base=[];
+const STOP=new Set(['а','и','в','на','не','что','как','это','я','ты','мне','по','с','у','ли','то','же']);
+
+function tokens(s){
+  return s.toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9\s]/g,' ')
+    .split(/\s+/).filter(w=>w&&!STOP.has(w)).map(w=>w.slice(0,5));
+}
+function parse(txt){
+  const out=[];let cur=null;
+  for(const raw of txt.split(/\r?\n/)){
+    const l=raw.trim();
+    if(/^вопрос\s*:/i.test(l)){
+      if(!cur||cur.a!==null){cur={qs:[],a:null};out.push(cur)}
+      cur.qs.push(l.replace(/^вопрос\s*:/i,'').trim());
+    }else if(/^ответ\s*:/i.test(l)&&cur){
+      cur.a=l.replace(/^ответ\s*:/i,'').trim();
+    }else if(l&&cur&&cur.a!==null){cur.a+='\n'+l}
+  }
+  return out.filter(e=>e.a!==null).map(e=>({...e,t:e.qs.map(tokens)}));
+}
+function answer(text){
+  const u=tokens(text);let best=0,ans=null;
+  if(!u.length)return null;
+  for(const e of base)for(const t of e.t){
+    if(!t.length)continue;
+    const hit=u.filter(w=>t.includes(w)).length;
+    const score=2*hit/(u.length+t.length);
+    if(score>best){best=score;ans=e.a}
+  }
+  return best>=0.4?ans:null;
+}
+function add(t,c){
+  const d=document.createElement('div');d.className='m '+c;d.textContent=t;
+  chat.appendChild(d);chat.scrollTop=chat.scrollHeight;
+}
+function send(){
+  const t=q.value.trim();if(!t)return;
+  add(t,'me');q.value='';
+  setTimeout(()=>add(answer(t)||'Не знаю ответа. Добавь этот вопрос в qa.txt 🙂','bot'),250);
+}
+document.getElementById('b').onclick=send;
+q.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+fetch('qa.txt',{cache:'no-cache'}).then(r=>{if(!r.ok)throw 0;return r.text()})
+  .then(t=>{base=parse(t);add('Привет! Загружено вопросов: '+base.length,'bot')})
+  .catch(()=>add('Не удалось загрузить qa.txt. Открой сайт через GitHub Pages, а не как файл.','bot'));
+</script>
+</body>
+</html>
