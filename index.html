@@ -17,7 +17,8 @@ body{background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,system-ui
 header,#chat,#chips,#f{position:relative;z-index:1}
 header{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
 .av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--a),var(--b));display:grid;place-items:center;font-size:22px;position:relative;flex:none;overflow:hidden}
-.av img{width:100%;height:100%;object-fit:cover;display:block}
+.av img{width:100%;height:100%;object-fit:cover;display:block;position:relative;z-index:1}
+.av .fb{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:0}
 .t{flex:1;min-width:0}.t b{display:block;font-size:17px}.t small{color:var(--mut);font-size:13px}
 .ib{background:none;border:1px solid var(--line);color:var(--mut);border-radius:14px;padding:6px 10px;font-size:15px;flex:none}
 .ib.on{border-color:var(--a);color:var(--fg);background:rgba(108,92,231,.25)}
@@ -91,7 +92,7 @@ header{padding:10px 14px;gap:10px;border-bottom:1px solid rgba(255,255,255,.08)}
 <body>
 <div id="orb"><div id="drift"><div id="pulse"><div id="spin"><i class="p"></i><i class="g"></i></div></div></div></div>
 <header>
-  <div class="av"><img src="logo.jpg" alt="Логотип" onerror="this.parentNode.innerHTML='<svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"#fff\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"4\" y=\"7\" width=\"16\" height=\"12\" rx=\"4\"/><path d=\"M12 3v4M9 13h.01M15 13h.01M9 17h6\"/></svg>'"></div>
+  <div class="av"><img src="logo.jpg" alt="Логотип" onerror="this.style.display='none'"><svg class="fb" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="7" width="16" height="12" rx="4"/><path d="M12 3v4M9 13h.01M15 13h.01M9 17h6"/></svg></div>
   <div class="t"><b>Моя ИИ</b><small id="st">онлайн</small></div>
   <button id="src" class="ib" title="Показывать сайты"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M9 7h6"/></svg></button>
   <button id="clr" class="ib">Очистить</button>
@@ -151,9 +152,9 @@ function special(text){
   }
   const d=new Date();
   if(/(который час|сколько времени|сколько сейчас времени)/.test(s))
-    return 'Сейчас '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+';
+    return 'Сейчас '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
   if(/(какое сегодня число|какая сегодня дата|какой сегодня день|какое число)/.test(s))
-    return 'Сегодня '+d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+';
+    return 'Сегодня '+d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   return null;
 }
 function clean(t){
@@ -245,43 +246,51 @@ function ddg(q){
     setTimeout(()=>done(null),6000);
   });
 }
+// Энциклопедии, которые бот открывает (бесплатно, без ключей)
+const HOSTS=['ru.wikipedia.org','en.wikipedia.org','uk.wikipedia.org','de.wikipedia.org','fr.wikipedia.org','es.wikipedia.org','simple.wikipedia.org'];
+async function searchHost(vs,host){
+  const seen=new Map();
+  for(const v of vs){
+    const pages=await wikiSearch(v,deep?6:3,deep?3:3,host).catch(()=>[]);
+    for(const p of pages)if(p.extract&&!seen.has(p.pageid))seen.set(p.pageid,{...p,host,score:relevance(p,v)});
+    const best=[...seen.values()].sort((a,b)=>b.score-a.score)[0];
+    if(best&&best.score>=1&&!deep)break;
+  }
+  return [...seen.values()].sort((a,b)=>b.score-a.score);
+}
 async function wiki(text){
   const vs=variants(text);
   const fix=await suggest(vs[0]);
   if(fix&&fix.toLowerCase()!==vs[0].toLowerCase())vs.unshift(fix);
-  let list=[];
-  // Сначала русская Википедия, потом английская
-  for(const host of ['ru.wikipedia.org','en.wikipedia.org']){
-    const seen=new Map();
-    for(const v of vs){
-      const pages=await wikiSearch(v,deep?6:2,deep?3:3,host);
-      for(const p of pages)if(p.extract&&!seen.has(p.pageid))seen.set(p.pageid,{...p,host,score:relevance(p,v)});
-      const best=[...seen.values()].sort((a,b)=>b.score-a.score)[0];
-      if(best&&best.score>=1&&!deep)break;
-    }
-    list=[...seen.values()].sort((a,b)=>b.score-a.score);
-    if(list.length&&list[0].score>=0.5)break;
+  // Ищем сразу во всех энциклопедиях параллельно
+  const results=await Promise.all(HOSTS.map(h=>searchHost(vs,h)));
+  let list=results.flat().sort((a,b)=>b.score-a.score);
+  const good=list.filter(p=>p.score>=0.5);
+  if(!good.length){
+    // Ничего хорошего: быстрые справки DuckDuckGo
+    const d=await ddg(text);
+    if(d)return d;
+    if(!list.length)return null;
   }
-  if(!list.length){
-    // Последний вариант: быстрые справки DuckDuckGo
-    return await ddg(text);
-  }
+  const pool=good.length?good:list;
   if(!deep){
-    const top=list[0];
-    return {text:top.extract,link:top.fullurl,sources:[{title:top.title,link:top.fullurl}]};
+    // Обычный режим: лучшая статья из каждой энциклопедии (до 3 источников)
+    const bestPerHost=[];
+    for(const h of HOSTS){const p=pool.find(x=>x.host===h);if(p)bestPerHost.push(p)}
+    const top=pool[0];
+    return {text:top.extract,link:top.fullurl,sources:bestPerHost.slice(0,4).map(p=>({title:p.title+' ('+p.host.split('.')[0]+')',link:p.fullurl}))};
   }
-  // Глубокий режим: читаем полные статьи лучших кандидатов и отбираем нужные предложения
-  const cands=list.slice(0,3);
+  // Глубокий режим: читаем полные статьи лучших кандидатов из разных энциклопедий
+  const cands=pool.slice(0,5);
   const texts=await Promise.all(cands.map(p=>fullText(p.pageid,p.host).catch(()=>'')));
-  let pool=[];
+  let picks=[];
   cands.forEach((p,i)=>{
-    const sents=bestSentences(texts[i]||p.extract,text,4).map(x=>({x,p}));
-    pool.push(...sents);
+    bestSentences(texts[i]||p.extract,text,4).forEach(x=>picks.push({x,p}));
   });
-  const picked=pool.sort((a,b)=>b.p.score-a.p.score).slice(0,5);
+  const picked=picks.sort((a,b)=>b.p.score-a.p.score).slice(0,6);
   const answerText=picked.length?picked.map(o=>o.x).join(' '):cands[0].extract;
   const main=picked.length?picked[0].p:cands[0];
-  return {text:answerText,link:main.fullurl,sources:cands.map(p=>({title:p.title,link:p.fullurl}))};
+  return {text:answerText,link:main.fullurl,sources:cands.map(p=>({title:p.title+' ('+p.host.split('.')[0]+')',link:p.fullurl}))};
 }
 
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
