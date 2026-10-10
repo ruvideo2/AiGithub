@@ -157,13 +157,27 @@ function special(text){
     return 'Сегодня '+d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   return null;
 }
+// Приводим текст к чистому виду: убираем HTML, сущности и невидимые символы
+function fixText(t){
+  if(!t)return '';
+  let x=String(t);
+  x=x.replace(/<[^>]+>/g,' ');
+  const ta=document.createElement('textarea');
+  ta.innerHTML=x;x=ta.value;
+  x=x.replace(/[\u200B-\u200F\u2060\uFEFF\u00AD]/g,'')
+     .replace(/[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g,' ')
+     .replace(/[\u201C\u201D\u00AB\u00BB]/g,'"')
+     .replace(/[\u2018\u2019]/g,"'")
+     .replace(/[\u2013\u2014]/g,'-')
+     .normalize('NFC');
+  return x.replace(/\s+/g,' ').trim();
+}
 function clean(t){
-  if(!t)return t;
-  let x=t;
-  // обрезаем служебные разделы в конце статьи
+  if(!t)return '';
+  let x=fixText(t);
   const cut=x.search(/==\s*(Примечания|Ссылки|См\. также|Литература|Источники)\s*==|\/\/ /);
   if(cut>0)x=x.slice(0,cut);
-  x=x.replace(/==+[^=\n]+==+/g,' ').replace(/\s+/g,' ').trim();
+  x=x.replace(/==+[^=]+==+/g,' ').replace(/\s+/g,' ').trim();
   return x;
 }
 function add(t,c,extra){
@@ -171,7 +185,7 @@ function add(t,c,extra){
   if(extra&&extra.link){const a=document.createElement('a');a.href=extra.link;a.target='_blank';a.textContent='Читать источник →';d.appendChild(a)}
   if(extra&&extra.sources&&showSrc&&extra.sources.length){
     const box=document.createElement('div');box.className='src';box.textContent='Сайты, которые я посмотрела:';
-    extra.sources.forEach(s=>{const r=document.createElement('div');const a=document.createElement('a');a.href=s.link;a.target='_blank';a.textContent='• '+s.title;r.appendChild(a);box.appendChild(r)});
+    extra.sources.forEach(s=>{const r=document.createElement('div');const a=document.createElement('a');a.href=s.link;a.target='_blank';a.textContent='• '+fixText(s.title);r.appendChild(a);box.appendChild(r)});
     d.appendChild(box);
   }
   chat.appendChild(d);chat.scrollTop=chat.scrollHeight;return d;
@@ -345,18 +359,21 @@ async function wiki(text){
   if(fix&&fix.toLowerCase()!==vs[0].toLowerCase())vs.unshift(fix);
   const results=await Promise.all([...HOSTS.map(h=>searchHost(vs,h,text)),extraSources(text)]);
   const list=results.flat().sort((a,b)=>b.score-a.score);
+  // Сначала строго подходящие статьи, иначе статьи, где есть хотя бы половина главных слов
   const good=list.filter(p=>p.good);
-  if(!good.length){
-    // Подходящих статей нет: пробуем быстрые справки DuckDuckGo, иначе честно сообщаем
-    return await ddg(text);
+  const pool=good.length?good:list.filter(p=>p.cov>=0.5);
+  if(!pool.length){
+    // Ничего подходящего: быстрые справки DuckDuckGo, иначе честно сообщаем
+    const d=await ddg(text);
+    return d||null;
   }
   if(!deep){
     const bestPerHost=[];
-    for(const h of HOSTS){const p=good.find(x=>x.host===h);if(p)bestPerHost.push(p)}
-    const top=good[0];
+    for(const h of HOSTS){const p=pool.find(x=>x.host===h);if(p)bestPerHost.push(p)}
+    const top=pool[0];
     return {text:stripArticle(top.extract),link:top.fullurl,sources:bestPerHost.slice(0,4).map(p=>({title:p.title+' ('+p.host.split('.')[0]+')',link:p.fullurl}))};
   }
-  const cands=good.slice(0,5);
+  const cands=pool.slice(0,5);
   const texts=await Promise.all(cands.map(p=>p.wiki?fullText(p.pageid,p.host).catch(()=>''):Promise.resolve(p.extract)));
   let picks=[];
   cands.forEach((p,i)=>{bestSentences(texts[i]||p.extract,text,4).forEach(x=>picks.push({x,p}))});
